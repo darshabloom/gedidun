@@ -41,6 +41,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .setup-card label{display:block;font-size:12px;font-weight:700;margin:15px 0}.setup-card input{display:block;width:100%;margin-top:6px;border:1px solid #b6bcae;padding:12px;border-radius:9px;font-size:13px}.setup-close{position:absolute;top:10px;right:14px;border:none;background:transparent;font-size:27px}
 .setup-card .cta{width:100%;justify-content:center;margin:6px 0}.setup-card .kicker{color:#627663}
 .refresh[hidden],.setup-close[hidden]{display:none!important}.setup-card details{margin:14px 0;border:1px solid #e1d7ca;border-radius:10px;padding:10px 13px}.setup-card details summary{cursor:pointer;color:#50675c;font-size:12px;font-weight:700}.setup-card .scope-note{border-radius:11px;background:#f0eee5;padding:10px;margin:12px 0;font-size:12px;color:#595c54}
+.setup-card details.import-phone-setup{background:#eef3eb;border:1px solid #b6cbb8}
+.setup-card details.import-phone-setup summary{color:#28483f;font-size:13px;font-weight:800}
+.setup-card details.import-phone-setup input{font-size:13px;max-width:100%;width:100%}
+#importPhoneSetupBtn{display:block;width:100%;margin-bottom:10px;background:#28483f;color:white;border-color:#28483f}
 #phoneSetupLink{display:block;width:100%;margin:8px 0 14px!important;padding:13px 16px;border:1px solid #91a99b;border-radius:12px;background:#e5eee6;color:#28483f;font-weight:800;text-align:center;box-shadow:0 2px 6px #00000010}
 #phoneSetupLink:hover{background:#d5e5d9}#phoneSetupLink:focus-visible{outline:3px solid #e4b45c;outline-offset:2px}
 </style>
@@ -54,8 +58,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 <label>Google OAuth web client ID<input id="oauthClientId" autocomplete="off" placeholder="…apps.googleusercontent.com"></label>
 <label>Spreadsheet ID<input id="registryId" autocomplete="off" placeholder="ID from the Google Sheets URL"></label>
 </details>
+<details id="importPhoneSetup" class="import-phone-setup">
+<summary>Already added Marina OS to your Home Screen? Import settings</summary>
+<label for="phoneSetupInput">Paste the phone setup link from Messages
+<input id="phoneSetupInput" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://darshabloom.github.io/...?...">
+</label>
+<button id="importPhoneSetupBtn" class="cta secondary" type="button">Import connection settings</button>
+<p class="hint">An iPhone Home Screen app has its own storage, separate from Safari. Import this link once inside the installed app. Your Google login is still required.</p>
+</details>
 <button id="phoneSetupLink" type="button" class="refresh" style="display:block;margin:8px 0 14px">Copy phone setup link</button>
-<p class="hint" style="margin:-3px 0 14px">Use this on your computer after entering both IDs. Send the copied link privately to your phone. The link includes the two configuration IDs, but never your Google password or access token.</p>
+<p class="hint" style="margin:-3px 0 14px">Use this on your computer after entering both IDs. Send the copied link privately to your phone. Once the icon is installed, open Marina OS from your Home Screen and choose "Import settings" to paste the link once. The link contains no Google password or access token.</p>
 <button id="connectBtn" class="cta primary" type="button">Continue with Google</button><p id="connectionStatus" role="status" aria-live="polite"></p><p class="scope-note">Google will ask permission to read and change spreadsheets. Gedidun requests this access to save your task statuses. Only accounts with permission to Marina's specific registry can use it.</p><p class="hint" id="setupText">The OAuth client ID and spreadsheet ID are configuration values, not passwords. No Google access token is saved to local storage.</p>
 </div></div><main class="app">
 <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting to the registry…</span></div>
@@ -101,19 +113,36 @@ const keyConfig='gedidun-pages-settings-v1';
 const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next'};
 const readConfig=()=>{try{return JSON.parse(localStorage.getItem(keyConfig)||'{}')}catch(_){return {}}};
 function validSettings(clientId,sheetId){return /^[-\w]+\.apps\.googleusercontent\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
-function getPhoneSettings(){
- const encoded=new URLSearchParams(window.location.search).get('setup');
- if(!encoded)return {};
+function parsePhoneSetup(encoded){
+ if(!encoded||!/^[A-Za-z0-9_-]+$/.test(encoded))return null;
  try{
   const pad='='.repeat((4-encoded.length%4)%4);
   const raw=JSON.parse(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')+pad));
-  if(!validSettings(raw.clientId,raw.sheetId))return {};
-  const settings={clientId:raw.clientId,sheetId:raw.sheetId};
-  localStorage.setItem(keyConfig,JSON.stringify(settings));
-  return settings;
- }catch(_){return {}}
+  return validSettings(raw.clientId,raw.sheetId)?{clientId:raw.clientId,sheetId:raw.sheetId}:null;
+ }catch(_){return null}
+}
+function getPhoneSettings(){
+ const settings=parsePhoneSetup(new URLSearchParams(window.location.search).get('setup'));
+ if(settings)localStorage.setItem(keyConfig,JSON.stringify(settings));
+ return settings||{};
 }
 let config={...readConfig(),...getPhoneSettings()}, token='', tokenExpires=0, meta=null;
+function importPhoneSetup(){
+ const raw=$('phoneSetupInput').value.trim();
+ let link;
+ try{link=new URL(raw)}catch(_){showStatus('Please paste the complete phone setup link, beginning with https://');return}
+ if(link.origin!==location.origin||!link.pathname.startsWith('/gedidun/marina-os/')){showStatus('This is not a Gedidun Marina OS setup link.');return}
+ const settings=parsePhoneSetup(link.searchParams.get('setup'));
+ if(!settings){showStatus('The link is missing valid connection settings. Copy a new one from Gedidun on your computer.');return}
+ config=settings;
+ localStorage.setItem(keyConfig,JSON.stringify(settings));
+ $('oauthClientId').value=settings.clientId;
+ $('registryId').value=settings.sheetId;
+ $('advancedSetup').open=false;
+ $('importPhoneSetup').open=false;
+ $('phoneSetupInput').value='';
+ showStatus('Connection settings imported and saved on this device. Tap Continue with Google.',true);
+}
 async function copyPhoneLink(){
  const clientId=$('oauthClientId').value.trim(),sheetId=$('registryId').value.trim();
  if(!validSettings(clientId,sheetId)){showStatus('Enter the Google OAuth Client ID and Spreadsheet ID on this computer first.');return}
@@ -283,6 +312,7 @@ function signOut(){
 window.addEventListener('DOMContentLoaded',()=>{
  $('authBtn').addEventListener('click',showSettings);$('connectBtn').addEventListener('click',connect);
   $('phoneSetupLink').addEventListener('click',copyPhoneLink);
+  $('importPhoneSetupBtn').addEventListener('click',importPhoneSetup);
  $('signOutBtn').addEventListener('click',signOut);
  $('setupClose').addEventListener('click',()=>{if(token)$('setup').hidden=true});
  showSettings();
@@ -291,7 +321,7 @@ window.addEventListener('gedidun-ready',finishSignIn);
 window.addEventListener('gedidun-auth-failed',e=>{
  showSettings();showStatus('Unable to open the Marina OS registry. Check Google account access and try again: '+(e.detail?.message||'Unknown error'));
 });
-window.GedidunAuth={connect,showSettings,copyPhoneLink,hasToken:()=>!!token};
+window.GedidunAuth={connect,showSettings,copyPhoneLink,importPhoneSetup,hasToken:()=>!!token};
 })();
 
 </script>
