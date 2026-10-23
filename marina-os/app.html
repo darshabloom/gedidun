@@ -40,16 +40,19 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .setup-card h2{font:normal 32px Georgia,serif;margin:7px 0 12px}.setup-card p{color:#5b625b;line-height:1.47;font-size:13px}
 .setup-card label{display:block;font-size:12px;font-weight:700;margin:15px 0}.setup-card input{display:block;width:100%;margin-top:6px;border:1px solid #b6bcae;padding:12px;border-radius:9px;font-size:13px}.setup-close{position:absolute;top:10px;right:14px;border:none;background:transparent;font-size:27px}
 .setup-card .cta{width:100%;justify-content:center;margin:6px 0}.setup-card .kicker{color:#627663}
+.refresh[hidden],.setup-close[hidden]{display:none!important}.setup-card details{margin:14px 0;border:1px solid #e1d7ca;border-radius:10px;padding:10px 13px}.setup-card details summary{cursor:pointer;color:#50675c;font-size:12px;font-weight:700}.setup-card .scope-note{border-radius:11px;background:#f0eee5;padding:10px;margin:12px 0;font-size:12px;color:#595c54}
 </style>
 </head>
 <body>
-<header class="top"><div class="top-inner"><div class="top-line"><span class="kicker">GEDIDUN · MARINA OS</span><button type="button" class="refresh" id="authBtn" style="margin-left:auto;margin-right:8px" aria-label="Connect Google">Connect Google</button><button type="button" class="refresh" id="refreshBtn" aria-label="Refresh data">↻ Refresh</button></div><h1>Today, with perspective.</h1><p class="intro">Your priorities, your projects and the next real move — drawn from the same registry.</p></div></header>
+<header class="top"><div class="top-inner"><div class="top-line"><span class="kicker">GEDIDUN · MARINA OS</span><button type="button" class="refresh" id="authBtn" style="margin-left:auto;margin-right:8px" aria-label="Sign in with Google">Sign in</button><button type="button" class="refresh" id="signOutBtn" hidden aria-label="Sign out of Marina OS">Sign out</button><button type="button" class="refresh" id="refreshBtn" aria-label="Refresh data">↻ Refresh</button></div><h1>Today, with perspective.</h1><p class="intro">Your priorities, your projects and the next real move — drawn from the same registry.</p></div></header>
 <div id="setup" class="setup" hidden role="dialog" aria-modal="true" aria-label="Connect your Google Sheets registry"><div class="setup-card">
-<button type="button" class="setup-close" id="setupClose" aria-label="Close">×</button><div class="kicker" style="color:#667665">PRIVATE GOOGLE CONNECTION</div><h2>Connect your registry</h2>
-<p>Gedidun’s website contains no private projects. Sign in with the Google account that has permission to your Marina OS spreadsheet. Access tokens stay only in this browser tab.</p>
+<button type="button" class="setup-close" id="setupClose" aria-label="Close" hidden>×</button><div class="kicker" style="color:#667665">MARINA OS · PRIVATE DATA</div><h2>Sign in to Marina OS</h2>
+<p>Use the Google account permitted to access Marina's registry. The website itself is public if GitHub Pages is enabled; the portfolio only loads after Google confirms spreadsheet access.</p>
+<details id="advancedSetup"><summary>Connection settings (first-time setup)</summary>
 <label>Google OAuth web client ID<input id="oauthClientId" autocomplete="off" placeholder="…apps.googleusercontent.com"></label>
 <label>Spreadsheet ID<input id="registryId" autocomplete="off" placeholder="ID from the Google Sheets URL"></label>
-<button id="connectBtn" class="cta primary" type="button">Connect Google</button><p id="connectionStatus" role="status"></p><p class="hint" id="setupText">First-time setup is described in README.md. Nothing is published from your Sheet to GitHub.</p>
+</details>
+<button id="connectBtn" class="cta primary" type="button">Continue with Google</button><p id="connectionStatus" role="status" aria-live="polite"></p><p class="scope-note">Google will ask permission to read and change spreadsheets. Gedidun requests this access to save your task statuses. Only accounts with permission to Marina's specific registry can use it.</p><p class="hint" id="setupText">The OAuth client ID and spreadsheet ID are configuration values, not passwords. No Google access token is saved to local storage.</p>
 </div></div><main class="app">
 <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting to the registry…</span></div>
 <div class="notice" id="notice" hidden></div>
@@ -220,16 +223,41 @@ function connect(){
  const client=google.accounts.oauth2.initTokenClient({client_id:config.clientId,scope:SCOPE,callback:r=>{
   if(r.error||!r.access_token){showStatus('Google sign-in failed: '+(r.error||'missing authorisation'));return}
   token=r.access_token;tokenExpires=Date.now()+Math.max(300,r.expires_in||3600)*1000;meta=null;
-  $('setup').hidden=true;$('authBtn').textContent='Change account';$('setupText').textContent='Authorised connection active in this tab';
-  window.dispatchEvent(new CustomEvent('gedidun-connected'));showStatus('Connected',true);
+  showStatus('Google sign-in accepted. Checking registry permission…');
+  window.dispatchEvent(new CustomEvent('gedidun-connected'));
  }});
  client.requestAccessToken({prompt:'consent'});
 }
-function showSettings(){ $('setup').hidden=false;$('oauthClientId').value=config.clientId||'';$('registryId').value=config.sheetId||'' }
+function showSettings(){
+ $('setup').hidden=false;$('setupClose').hidden=!token;
+ $('oauthClientId').value=config.clientId||'';$('registryId').value=config.sheetId||'';
+ $('advancedSetup').open=!(config.clientId&&config.sheetId);
+ if(!token)showStatus('Sign in to load your live projects.');
+}
+function finishSignIn(){
+ $('setup').hidden=true;$('setupClose').hidden=false;
+ $('authBtn').textContent='Change account';$('signOutBtn').hidden=false;
+ showStatus('Signed in · registry access confirmed',true);
+}
+function signOut(){
+ const oldToken=token;
+ token='';tokenExpires=0;meta=null;
+ // Revoking the short-lived access token also withdraws this app's existing Google grant.
+ if(oldToken&&window.google?.accounts?.oauth2?.revoke){
+   try{google.accounts.oauth2.revoke(oldToken,()=>{});}catch(_){/* local disconnect still works */}
+ }
+ // Force a clean document so private records and any pending action state are discarded.
+ window.location.reload();
+}
 window.addEventListener('DOMContentLoaded',()=>{
  $('authBtn').addEventListener('click',showSettings);$('connectBtn').addEventListener('click',connect);
- $('setupClose').addEventListener('click',()=>{$('setup').hidden=true});
+ $('signOutBtn').addEventListener('click',signOut);
+ $('setupClose').addEventListener('click',()=>{if(token)$('setup').hidden=true});
  showSettings();
+});
+window.addEventListener('gedidun-ready',finishSignIn);
+window.addEventListener('gedidun-auth-failed',e=>{
+ showSettings();showStatus('Unable to open the Marina OS registry. Check Google account access and try again: '+(e.detail?.message||'Unknown error'));
 });
 window.GedidunAuth={connect,showSettings,hasToken:()=>!!token};
 })();
@@ -325,10 +353,10 @@ function openTask(key){const a=state.data?.actions.find(a=>a.key===key);if(!a)re
 function closeTask(){$('screen').hidden=true;document.body.style.overflow='';state.selectedKey=null;state.waitingOpen=false;}
 function toast(text,isError){$('toast').textContent=text;$('toast').style.background=isError?'#a24639':'#2e5140';$('toast').hidden=false;clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>{$('toast').hidden=true},4600)}
 function info(text,error){$('notice').textContent=text;$('notice').hidden=!text;$('sync').classList.toggle('error',!!error)}
-function refresh(quiet=false){if(!window.google?.script?.run){$('syncText').textContent='This preview cannot connect to Sheets. Deploy from the bound Apps Script editor.';info('Connect your Google account to load the live private registry.',true);return;}
+function refresh(quiet=false){if(!window.GedidunAuth?.hasToken()){ $('syncText').textContent='Google sign-in required';return;}if(!window.google?.script?.run){$('syncText').textContent='Connection unavailable';info('This version requires a configured Google connection.',true);return;}
  if(!quiet){$('syncText').textContent='Checking registry…';$('sync').className='sync';}
- google.script.run.withSuccessHandler(d=>{state.data=d; $('sync').className='sync live';$('syncText').textContent=`Live registry · checked ${d.asOf} (NZ)`;info('',false);render();if(state.selectedKey&&d.actions.some(a=>a.key===state.selectedKey)){openTask(state.selectedKey);}else if(state.selectedKey){closeTask();}})
- .withFailureHandler(err=>{ $('sync').className='sync error';$('syncText').textContent='Connection unavailable';info('Registry refresh failed. Any displayed data may be out of date. '+(err.message||err),true);}).getDashboard();
+ google.script.run.withSuccessHandler(d=>{state.data=d; $('sync').className='sync live';$('syncText').textContent=`Live registry · checked ${d.asOf} (NZ)`;info('',false);render();window.dispatchEvent(new CustomEvent('gedidun-ready'));if(state.selectedKey&&d.actions.some(a=>a.key===state.selectedKey)){openTask(state.selectedKey);}else if(state.selectedKey){closeTask();}})
+ .withFailureHandler(err=>{ $('sync').className='sync error';$('syncText').textContent='Connection unavailable';info('Registry refresh failed. Any displayed data may be out of date. '+(err.message||err),true);window.dispatchEvent(new CustomEvent('gedidun-auth-failed',{detail:{message:err.message||String(err)}}));}).getDashboard();
 }
 function save(target){if(state.busy||!state.data)return;const a=state.data.actions.find(a=>a.key===state.selectedKey);if(!a||!a.canUpdate)return;let waitingOn='',followUp='',note='';
  if(target==='Closed'){
@@ -365,8 +393,8 @@ $('waitingMode').addEventListener('click',()=>{$('waitingForm').hidden=!$('waiti
 $('saveWaiting').addEventListener('click',()=>save('Waiting'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('screen').hidden&&!state.busy)closeTask()});
 // Re-read when foregrounded and every 2 min while open. Never trust hidden-tab cached state for saving.
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!state.busy&&$('screen').hidden)refresh(true)});
-setInterval(()=>{if(!document.hidden&&!state.busy&&$('screen').hidden)refresh(true)},120000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!state.busy&&$('screen').hidden&&window.GedidunAuth?.hasToken())refresh(true)});
+setInterval(()=>{if(!document.hidden&&!state.busy&&$('screen').hidden&&window.GedidunAuth?.hasToken())refresh(true)},120000);
 window.addEventListener('gedidun-connected',()=>refresh());
 refresh();navigate('today');
 })();
