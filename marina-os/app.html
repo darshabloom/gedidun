@@ -78,7 +78,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
   <div id="featureSlot" aria-live="polite"><div class="empty">Loading your next action…</div></div>
   <div class="eyebrow">Coming up</div><div class="queue" id="upcoming"></div>
   <details class="minor" id="reviewGroup"><summary id="reviewSummary">Past dates requiring review</summary><div class="minor-list" id="reviewList"></div></details>
-  <div class="eyebrow">No confirmed deadline</div><div class="queue" id="undated"></div>
+  <details class="minor" id="futureGroup" hidden><summary id="futureSummary">Scheduled to return</summary><div class="minor-list" id="futureList"></div></details><div class="eyebrow">No confirmed deadline</div><div class="queue" id="undated"></div>
  </section>
  <section id="paneProjects" class="pane section-pane current">
   <div class="section-title"><h2>Project bookshelf</h2><small id="projectCount">26 projects</small></div>
@@ -95,9 +95,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 <nav class="bottom-nav" aria-label="App sections"><button type="button" data-nav="today" class="active"><span class="ico">◉</span>Today</button><button type="button" data-nav="projects"><span class="ico">▤</span>Projects</button><button type="button" data-nav="waiting"><span class="ico">◷</span>Waiting</button></nav>
 <div class="screen" id="screen" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="handle"></div><div class="project-header"><div><div class="project-id" id="sheetProject"></div><h2 id="sheetTitle"></h2></div><button class="close" id="closeSheet" type="button" aria-label="Close details">×</button></div>
  <div class="sheet-meta" id="sheetMeta"></div><div class="sheet-next" id="sheetNext"></div><div class="sheet-meta" id="sheetMeaning"></div>
- <div class="actions" id="statusActions"><button type="button" class="cta pin" id="pinAction">☆ Choose as next</button><button type="button" class="cta primary" data-status="Closed">✓ Close outcome</button><button type="button" class="cta secondary" id="waitingMode">◷ Waiting</button><button type="button" class="cta" data-status="Action">↻ Active</button></div>
+ <div class="actions" id="statusActions"><button type="button" class="cta pin" id="pinAction">☆ Choose as next</button><button type="button" class="cta primary" data-status="Closed">✓ Close outcome</button><button type="button" class="cta secondary" id="waitingMode">◷ Waiting</button><button type="button" class="cta" id="resurfaceMode">◷ Show on date</button><button type="button" class="cta" data-status="Action">↻ Active</button></div>
  <div class="form" id="waitingForm" hidden><label>Who or what are you waiting for? *<input id="waitingOn" placeholder="e.g. Nick to confirm a date" maxlength="180" autocomplete="off"></label><label>Follow up on (optional)<input id="followUp" type="date"></label><label>Context (optional)<textarea id="waitingNote" maxlength="400" placeholder="What needs to happen next?"></textarea></label><button type="button" class="cta primary" id="saveWaiting">Save Waiting</button></div>
- <div id="saveResult" class="sheet-meta" aria-live="polite"></div><a class="source-link" id="recordLink" target="_blank" rel="noopener noreferrer">↗ Open original registry row</a><div class="sheet-footer" id="sheetFooter"></div>
+ <div class="form" id="resurfaceForm" hidden><label>Bring back as a priority on<input id="resurfaceDate" type="date" required></label><p id="resurfaceWarning" class="hint" aria-live="polite"></p><div class="actions"><button type="button" class="cta primary" id="saveResurface">Save return date</button><button type="button" class="cta" id="clearResurface">Remove date</button></div><p class="hint">This changes the Today priority, not the original due date or status. Open the app on that date to see it; it is not a phone notification.</p></div><div id="saveResult" class="sheet-meta" aria-live="polite"></div><a class="source-link" id="recordLink" target="_blank" rel="noopener noreferrer">↗ Open original registry row</a><div class="sheet-footer" id="sheetFooter"></div>
 </div></div>
 <div class="toast" id="toast" hidden role="status"></div>
 <script>
@@ -110,7 +110,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 const ROOT='https://sheets.googleapis.com/v4/spreadsheets/';
 const SCOPE='https://www.googleapis.com/auth/spreadsheets';
 const keyConfig='gedidun-pages-settings-v1';
-const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next'};
+const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next',resurface:'Dashboard Resurface'};
 const readConfig=()=>{try{return JSON.parse(localStorage.getItem(keyConfig)||'{}')}catch(_){return {}}};
 function validSettings(clientId,sheetId){return /^[-\w]+\.apps\.googleusercontent\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
 function parsePhoneSetup(encoded){
@@ -191,7 +191,7 @@ function timestamp(){return new Intl.DateTimeFormat('en-NZ',{timeZone:'Pacific/A
 async function getDashboard(){
  if(!config.sheetId)throw new Error('Enter the registry ID in Connect Google.');
  if(!meta)await metadata();
- const names=[TAB.projects,TAB.actions,TAB.visibility,...[TAB.followups,TAB.pin].filter(n=>n in meta)];
+ const names=[TAB.projects,TAB.actions,TAB.visibility,...[TAB.followups,TAB.pin,TAB.resurface].filter(n=>n in meta)];
  const rows=await batchValues(names),vis={};
  (rows[TAB.visibility]||[]).slice(1).forEach(r=>{if(/^P\d{3}$/.test(r[0]||''))vis[r[0]]=r[1]});
  const projects=(rows[TAB.projects]||[]).slice(1).filter(r=>/^P\d{3}$/.test(r[0]||'')).map(r=>({id:r[0],name:r[1]||'',parent:r[2]||'',purpose:r[4]||'',milestone:r[5]||'',milestoneDate:r[6]||'',next:r[8]||'',attention:r[11]||'',visibility:vis[r[0]]||'active'}));
@@ -204,8 +204,11 @@ async function getDashboard(){
  actions.forEach(a=>a.canUpdate=counts[a.key]===1&&['Action','Waiting','Scheduled','Closed','Cancelled'].includes(a.status));
  const followups={};(rows[TAB.followups]||[]).slice(1).forEach(r=>{if(r[0])followups[r[0]]={waitingOn:r[3]||'',followUp:r[4]||'',note:r[5]||'',updatedAt:r[6]||''}});
  actions.forEach(a=>a.waiting=followups[a.key]||{waitingOn:'',followUp:'',note:''});
+ const resurface={};
+ (rows[TAB.resurface]||[]).slice(1).forEach(r=>{if(r[0]&&/^20\d{2}-\d{2}-\d{2}$/.test(r[3]||''))resurface[r[0]]=r[3]});
+ actions.forEach(a=>a.resurfaceOn=a.status==='Action'?(resurface[a.key]||''):'');
  const pin=(rows[TAB.pin]||[])[1]?.[0]||'';
- const pinnedKey=actions.some(a=>a.key===pin&&a.status==='Action')?pin:'';
+ const pinnedKey=actions.some(a=>a.key===pin&&a.status==='Action'&&(!a.resurfaceOn||a.resurfaceOn<=getNZToday()))?pin:'';
  return {projects,actions,pinnedKey,today:getNZToday(),asOf:timestamp(),registryUrl:`https://docs.google.com/spreadsheets/d/${config.sheetId}/edit`,actionsGid:meta[TAB.actions],source:'Google Sheets (authorised browser read)',schemaVersion:1};
 }
 async function fetchSingle(name,range){const result=await request('values/'+encodeURIComponent(`${sheetName(name)}!${range}`));return result.values||[]}
@@ -230,9 +233,37 @@ async function checkedSource(args){
  if(projectId(data[0])!==args.project||data[1]!==args.outcome||data[3]!==args.expectedStatus)throw new Error('The source record has changed. Refresh before saving.');
  return data;
 }
+async function saveResurfaceRow(args,day){
+ await ensureSheet(TAB.resurface,['Task key','Project ID','Outcome','Return date NZ','Updated NZ']);
+ const values=await fetchSingle(TAB.resurface,'A1:E1000');
+ const matches=values.map((r,i)=>r[0]===args.key?i+1:0).filter(Boolean);
+ if(matches.length>1)throw new Error('Duplicate scheduled priority records. Inspect the registry.');
+ const row=matches[0]||values.length+1;
+ await replaceValues(TAB.resurface,`A${row}:E${row}`,[[args.key,args.project,args.outcome,day,timestamp()]]);
+ const check=(await fetchSingle(TAB.resurface,`A${row}:E${row}`))[0]||[];
+ if(check[0]!==args.key||check[1]!==args.project||check[2]!==args.outcome||(check[3]||'')!==day)throw new Error('The scheduled priority date was not verified.');
+}
+async function setResurface(args){
+ await checkedSource(args);
+ if(args.expectedStatus!=='Action')throw new Error('Only active actions can be scheduled to return.');
+ const day=args.resurfaceOn?validDate(args.resurfaceOn):'';
+ if(day&&day<getNZToday())throw new Error('Choose today or a future New Zealand date.');
+ await saveResurfaceRow(args,day);
+ const warnings=[];
+ if(day&&TAB.pin in meta){
+  try{
+   const pin=(await fetchSingle(TAB.pin,'A2:D2'))[0]||[];
+   if(pin[0]===args.key)await replaceValues(TAB.pin,'A2:D2',[['','','','']]);
+  }catch(e){warnings.push('Prior immediate selection may need checking: '+errorMessage(e))}
+ }
+ const audit=await auditRow([timestamp(),args.key,args.project,args.row,args.outcome,'Action','Action','',day,day?'Show again as priority '+day+' (source deadline unchanged)':'Scheduled return cleared (source deadline unchanged)','Gedidun GitHub Pages']);
+ if(audit)warnings.push(audit);
+ return {verified:true,resurfaceOn:day,warnings};
+}
 async function setNextAction(args){
  await checkedSource(args);
  if(args.expectedStatus!=='Action')throw new Error('Only active outcomes can be chosen as next.');
+ if(TAB.resurface in meta)await saveResurfaceRow(args,'');
  await ensureSheet(TAB.pin,['Task key','Project','Outcome','Selected at (NZ)']);
  await replaceValues(TAB.pin,'A2:D2',[[args.key,args.project,args.outcome,timestamp()]]);
  const verify=(await fetchSingle(TAB.pin,'A2:D2'))[0]||[];
@@ -264,6 +295,9 @@ async function saveAction(args){
   const chk=(await fetchSingle(TAB.followups,`A${nr}:G${nr}`))[0]||[];
   if(chk[0]!==args.key||chk[3]!== (args.targetStatus==='Waiting'?waitingOn:''))warnings.push('Follow-up metadata could not be fully verified.');
  }catch(e){warnings.push('Status saved but follow-up record needs checking: '+errorMessage(e))}
+ if(args.targetStatus!=='Action'&&TAB.resurface in meta){
+  try{await saveResurfaceRow(args,'');}catch(e){warnings.push('Scheduled return may need checking: '+errorMessage(e))}
+ }
  if(args.targetStatus!=='Action'&&TAB.pin in meta){
   try{const cur=(await fetchSingle(TAB.pin,'A2:D2'))[0]||[];if(cur[0]===args.key)await replaceValues(TAB.pin,'A2:D2',[['','','','']]);}catch(e){warnings.push('Selected-next setting may need checking.')}
  }
@@ -271,7 +305,7 @@ async function saveAction(args){
  if(log)warnings.push(log);
  return {verified:true,status:args.targetStatus,previous:args.expectedStatus,row:args.row,warnings};
 }
-const runner={withSuccessHandler(cb){this.onSuccess=cb;return this},withFailureHandler(cb){this.onFail=cb;return this},invoke(method,args){Promise.resolve().then(()=>method(args)).then(result=>this.onSuccess?.(result)).catch(err=>this.onFail?.({message:errorMessage(err)}));},getDashboard(){this.invoke(getDashboard)},saveAction(arg){this.invoke(saveAction,arg)},setNextAction(arg){this.invoke(setNextAction,arg)}};
+const runner={withSuccessHandler(cb){this.onSuccess=cb;return this},withFailureHandler(cb){this.onFail=cb;return this},invoke(method,args){Promise.resolve().then(()=>method(args)).then(result=>this.onSuccess?.(result)).catch(err=>this.onFail?.({message:errorMessage(err)}));},getDashboard(){this.invoke(getDashboard)},saveAction(arg){this.invoke(saveAction,arg)},setNextAction(arg){this.invoke(setNextAction,arg)},setResurface(arg){this.invoke(setResurface,arg)}};
 window.google=window.google||{};
 window.google.script={run:{withSuccessHandler(cb){return Object.create(runner,{onSuccess:{value:cb,writable:true}})}}};
 function connect(){
@@ -341,10 +375,11 @@ function delta(date){if(!date||!state.data)return 9999;return Math.round((Date.p
 function bucket(a){
  if(a.status==='Waiting'){let day=delta(a.waiting?.followUp||'');return day<=0?'follow-up':day<8?'waiting-soon':'waiting';}
  if(a.status!=='Action')return 'inactive';
+ if(a.resurfaceOn&&delta(a.resurfaceOn)>0)return 'snoozed';
  const d=dueISO(a.due),n=delta(d);
  if(!d)return 'undated';if(n<0)return 'review';if(n===0)return 'today';if(n===1)return 'tomorrow';if(n<=7)return 'week';if(n<=14)return 'fortnight';return 'later';
 }
-const score=a=>({today:120,tomorrow:110,week:90,fortnight:70,later:28,undated:25,review:12,'follow-up':85,'waiting-soon':35,waiting:5,inactive:-999})[bucket(a)]||-999;
+const score=a=>({today:120,tomorrow:110,week:90,fortnight:70,later:28,undated:25,review:12,'follow-up':85,'waiting-soon':35,waiting:5,snoozed:-900,inactive:-999})[bucket(a)]||-999;
 function visibilityBonus(p){return ({focus:3,active:2,waiting:0,parked:-1})[p?.visibility]||0}
 function explicitFirstScore(a){
  const p=findProject(a.project);if(!p)return 0;
@@ -355,21 +390,27 @@ function explicitFirstScore(a){
  return title.filter(t=>primary.has(t)).length>=2 &&
    (title.some(t=>primary.has(t)&&t.length>=7)) ? 24:0;
 }
-function isPinned(a){return a.status==='Action'&&a.key===state.data?.pinnedKey}
-function rank(a){return (isPinned(a)?1000:0)+score(a)+explicitFirstScore(a)}
+function isPinned(a){return a.status==='Action'&&bucket(a)!=='snoozed'&&a.key===state.data?.pinnedKey}
+function returned(a){return a.status==='Action'&&a.resurfaceOn&&delta(a.resurfaceOn)<=0}
+function rank(a){return (isPinned(a)?1000:0)+(returned(a)?950:0)+score(a)+explicitFirstScore(a)}
 function orderedActions(){return [...(state.data?.actions||[])].sort((a,b)=>rank(b)-rank(a)||delta(dueISO(a.due))-delta(dueISO(b.due))||a.row-b.row)}
 function findProject(id){return state.data?.projects.find(p=>p.id===id)}
-function attention(){return orderedActions().filter(a=>isPinned(a)||['today','tomorrow','week','fortnight','follow-up'].includes(bucket(a)));}
+function attention(){return orderedActions().filter(a=>isPinned(a)||returned(a)||['today','tomorrow','week','fortnight','follow-up'].includes(bucket(a)));}
 function htmlAction(a,extra=''){
- const b=bucket(a),p=findProject(a.project),when={today:'Today',tomorrow:'Tomorrow',week:dueISO(a.due).slice(5),fortnight:dueISO(a.due).slice(5),review:'Check date','follow-up':'Follow up','waiting-soon':'Follow-up',undated:'No date'}[b]||'Later';
- const lead=a.next||a.outcome;
+ const b=bucket(a),p=findProject(a.project);let when={today:'Today',tomorrow:'Tomorrow',week:dueISO(a.due).slice(5),fortnight:dueISO(a.due).slice(5),review:'Check date','follow-up':'Follow up','waiting-soon':'Follow-up',undated:'No date'}[b]||'Later';
+ if(returned(a))when='Back today';
+  if(b==='snoozed')when='On '+a.resurfaceOn.slice(5);
+  const lead=a.next||a.outcome;
  return `<button class="action" data-open="${safe(a.key)}" type="button"><span class="pill ${safe(b)}">${safe(when)}</span><span style="min-width:0;flex:1"><strong>${safe(a.outcome)}</strong><em>${safe(p?.name||a.project)} · ${safe(trunc(lead,95))}</em></span><span class="arrow">›</span></button>`;
 }
 function renderToday(){if(!state.data)return;const upcoming=attention(),top=upcoming[0];$('todayLabel').textContent=state.data.today;
- if(top){let p=findProject(top.project);$('featureSlot').innerHTML=`<button type="button" class="feature" data-open="${safe(top.key)}"><div class="feature-eyebrow">${safe(isPinned(top)?'Your chosen next action · ':explicitFirstScore(top)?'Named project priority · ':'' )}${safe(bucket(top)==='today'?'Due today':bucket(top)==='tomorrow'?'Due tomorrow':bucket(top)==='follow-up'?'Follow-up due':bucket(top)==='review'?'Past date — check':bucket(top)==='undated'?'No date recorded':'Next dated action')} · ${safe(p?.name||top.project)}</div><strong>${safe(top.outcome)}</strong><div class="task-mini">${safe(trunc(top.next||top.detail,155))}</div><div class="feature-footer"><span>${safe(top.due||top.waiting?.followUp||'No recorded due date')}</span><span>Open action →</span></div></button>`;}else{$('featureSlot').innerHTML='<div class="empty">No actionable outcomes have a confirmed date in the next 14 days. Check undated work and past dates below.</div>'}
+ if(top){let p=findProject(top.project);$('featureSlot').innerHTML=`<button type="button" class="feature" data-open="${safe(top.key)}"><div class="feature-eyebrow">${safe(isPinned(top)?'Your chosen next action · ':returned(top)?'Scheduled priority returned · ':explicitFirstScore(top)?'Named project priority · ':'' )}${safe(bucket(top)==='today'?'Due today':bucket(top)==='tomorrow'?'Due tomorrow':bucket(top)==='follow-up'?'Follow-up due':bucket(top)==='review'?'Past date — check':bucket(top)==='undated'?'No date recorded':'Next dated action')} · ${safe(p?.name||top.project)}</div><strong>${safe(top.outcome)}</strong><div class="task-mini">${safe(trunc(top.next||top.detail,155))}</div><div class="feature-footer"><span>${safe(top.due||top.waiting?.followUp||'No recorded due date')}</span><span>Open action →</span></div></button>`;}else{$('featureSlot').innerHTML='<div class="empty">No actionable outcomes have a confirmed date in the next 14 days. Check undated work and past dates below.</div>'}
  $('upcoming').innerHTML=upcoming.filter(a=>a.key!==top?.key).slice(0,9).map(a=>htmlAction(a)).join('')||'<div class="hint">No other confirmed short-term deadlines.</div>';
- const review=orderedActions().filter(a=>bucket(a)==='review');$('reviewSummary').textContent=`Past dates needing verification (${review.length})`;
+ const review=orderedActions().filter(a=>bucket(a)==='review'&&!returned(a));$('reviewSummary').textContent=`Past dates needing verification (${review.length})`;
  $('reviewList').innerHTML=review.slice(0,30).map(a=>htmlAction(a)).join('')||'<div class="hint">No past dates to verify.</div>';
+  const scheduled=orderedActions().filter(a=>bucket(a)==='snoozed').sort((a,b)=>a.resurfaceOn.localeCompare(b.resurfaceOn));
+  $('futureGroup').hidden=!scheduled.length;$('futureSummary').textContent=`Scheduled to return (${scheduled.length})`;
+  $('futureList').innerHTML=scheduled.map(a=>htmlAction(a)).join('');
  const undated=orderedActions().filter(a=>bucket(a)==='undated').sort((a,b)=>visibilityBonus(findProject(b.project))-visibilityBonus(findProject(a.project))||a.row-b.row);
  $('undated').innerHTML=undated.slice(0,7).map(a=>htmlAction(a)).join('')||'<div class="hint">No undated active work.</div>';
 }
@@ -400,13 +441,15 @@ function navigate(tab){state.view=tab;const phones=window.matchMedia('(max-width
  document.querySelectorAll('.section-pane').forEach(x=>x.classList.toggle('current',x.id==='pane'+tab[0].toUpperCase()+tab.slice(1)||!phones));
  window.scrollTo({top:0,behavior:'smooth'});
 }
+function nextMonday(today){const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+((8-d.getUTCDay())%7||7));return d.toISOString().slice(0,10)}
+function updateReturnWarning(){const a=state.data?.actions.find(x=>x.key===state.selectedKey),date=$('resurfaceDate').value,due=dueISO(a?.due);$('resurfaceWarning').textContent=due&&date>due?'⚠ Recorded deadline '+due+' is earlier than your chosen return date. The deadline will NOT change.':'Your original due date will stay unchanged.'}
 function openTask(key){const a=state.data?.actions.find(a=>a.key===key);if(!a)return;state.selectedKey=key;state.waitingOpen=false;
- const p=findProject(a.project);$('pinAction').textContent=isPinned(a)?'★ Your next action':'☆ Choose as next';$('pinAction').disabled=state.busy||!a.canUpdate||a.status!=='Action'||isPinned(a);$('sheetProject').textContent=`${a.project} · ${p?.name||''} · ${activityName(a.outcome)}`;$('sheetTitle').textContent=a.outcome;
- $('sheetMeta').textContent=`${a.status==='Closed'?'Done':a.status} · ${a.due||'No confirmed due date'} · ${bucket(a)==='review'?'Past date requires checking':'Current registry record'}`;
+ const p=findProject(a.project);$('resurfaceMode').disabled=state.busy||!a.canUpdate||a.status!=='Action';$('pinAction').textContent=isPinned(a)?'★ Your next action':'☆ Choose as next';$('pinAction').disabled=state.busy||!a.canUpdate||a.status!=='Action'||isPinned(a);$('sheetProject').textContent=`${a.project} · ${p?.name||''} · ${activityName(a.outcome)}`;$('sheetTitle').textContent=a.outcome;
+ $('sheetMeta').textContent=`${a.status==='Closed'?'Done':a.status} · ${a.due||'No confirmed due date'} · ${a.resurfaceOn?'Priority returns '+a.resurfaceOn+' · ':''}${bucket(a)==='review'?'Past date requires checking':'Current registry record'}`;
  $('sheetNext').textContent=a.next||'No next action defined.';
  $('sheetMeaning').textContent=a.doneWhen?'Done when: '+a.doneWhen:'';
  $('waitingOn').value=a.waiting?.waitingOn||'';$('followUp').value=a.waiting?.followUp||'';$('waitingNote').value=a.waiting?.note||'';
- $('waitingForm').hidden=true;$('saveResult').textContent='';$('saveResult').className='sheet-meta';
+ $('waitingForm').hidden=true;$('resurfaceForm').hidden=true;$('resurfaceDate').value=a.resurfaceOn||nextMonday(state.data.today);$('resurfaceDate').min=state.data.today;$('clearResurface').hidden=!a.resurfaceOn;updateReturnWarning();$('saveResult').textContent='';$('saveResult').className='sheet-meta';
  $('statusActions').querySelectorAll('button').forEach(btn=>{btn.disabled=state.busy||!a.canUpdate});
  $('recordLink').href=`${state.data.registryUrl}#gid=${state.data.actionsGid}&range=A${a.row}:H${a.row}`;
  $('sheetFooter').textContent=`Source: Actions & Waiting, row ${a.row}. ${!a.canUpdate?'This row cannot be updated from the app; check duplicated or unsupported status values.':'Updates are checked against the latest source row before being saved.'}`;
@@ -450,8 +493,13 @@ document.addEventListener('click',e=>{const open=e.target.closest('[data-open]')
  if(e.target.closest('[data-close-project]')){state.selectedProject=null;$('projectDetails').innerHTML='';renderWall();return;}
  const s=e.target.closest('[data-status]');if(s){save(s.dataset.status);return;}
 });
+function resurfaceSelected(clear){if(state.busy||!state.data)return;const a=state.data.actions.find(x=>x.key===state.selectedKey);if(!a||a.status!=='Action'||!a.canUpdate)return;const date=clear?'':$('resurfaceDate').value;if(!clear&&(!/^20\d{2}-\d{2}-\d{2}$/.test(date)||date<state.data.today)){$('saveResult').textContent='Choose today or a later date.';return}const due=dueISO(a.due);if(!clear&&due&&date>due&&!window.confirm('Recorded deadline: '+due+'. Bring this action back '+date+' AFTER that date without changing the deadline?'))return;const args={row:a.row,key:a.key,project:a.project,outcome:a.outcome,expectedStatus:a.status,resurfaceOn:date};state.busy=true;$('saveResurface').disabled=true;$('clearResurface').disabled=true;$('saveResult').textContent='Saving return date to Google Sheets…';google.script.run.withSuccessHandler(res=>{state.busy=false;$('saveResurface').disabled=false;$('clearResurface').disabled=false;if(res.verified){toast((res.warnings||[]).length?'Saved with warnings: '+res.warnings.join('; '):clear?'Scheduled return removed':'Will reappear on '+date+' · deadline unchanged',!!(res.warnings||[]).length);closeTask();refresh(true)}else{$('saveResult').textContent='Return date not verified. Check the registry.';}}).withFailureHandler(e=>{state.busy=false;$('saveResurface').disabled=false;$('clearResurface').disabled=false;$('saveResult').textContent='Could not save: '+(e.message||e);}).setResurface(args)}
+$('resurfaceMode').addEventListener('click',()=>{$('resurfaceForm').hidden=!$('resurfaceForm').hidden;$('waitingForm').hidden=true;if(!$('resurfaceForm').hidden){updateReturnWarning();$('resurfaceDate').focus()}});
+$('resurfaceDate').addEventListener('change',updateReturnWarning);
+$('saveResurface').addEventListener('click',()=>resurfaceSelected(false));
+$('clearResurface').addEventListener('click',()=>resurfaceSelected(true));
 $('closeSheet').addEventListener('click',closeTask);$('screen').addEventListener('click',e=>{if(e.target===$('screen')&&!state.busy)closeTask()});
-$('waitingMode').addEventListener('click',()=>{$('waitingForm').hidden=!$('waitingForm').hidden;if(!$('waitingForm').hidden)$('waitingOn').focus()});
+$('waitingMode').addEventListener('click',()=>{$('waitingForm').hidden=!$('waitingForm').hidden;if(!$('waitingForm').hidden){$('resurfaceForm').hidden=true;$('waitingOn').focus()}});
 $('saveWaiting').addEventListener('click',()=>save('Waiting'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('screen').hidden&&!state.busy)closeTask()});
 // Re-read when foregrounded and every 2 min while open. Never trust hidden-tab cached state for saving.
