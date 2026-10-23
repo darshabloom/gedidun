@@ -98,7 +98,7 @@ const SCOPE='https://www.googleapis.com/auth/spreadsheets';
 const keyConfig='gedidun-pages-settings-v1';
 const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next'};
 const readConfig=()=>{try{return JSON.parse(localStorage.getItem(keyConfig)||'{}')}catch(_){return {}}};
-function validSettings(clientId,sheetId){return /^[-\\w]+\\.apps\\.googleusercontent\\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
+function validSettings(clientId,sheetId){return /^[-\w]+\.apps\.googleusercontent\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
 function getPhoneSettings(){
  const encoded=new URLSearchParams(window.location.search).get('setup');
  if(!encoded)return {};
@@ -116,7 +116,7 @@ async function copyPhoneLink(){
  const clientId=$('oauthClientId').value.trim(),sheetId=$('registryId').value.trim();
  if(!validSettings(clientId,sheetId)){showStatus('Enter the Google OAuth Client ID and Spreadsheet ID on this computer first.');return}
  const page=new URL('./app.html',window.location.href);
- const setup=btoa(JSON.stringify({clientId,sheetId})).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+ const setup=btoa(JSON.stringify({clientId,sheetId})).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
  page.searchParams.set('setup',setup);
  try{
   if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
