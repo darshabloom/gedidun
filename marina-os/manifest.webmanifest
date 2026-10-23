@@ -1,0 +1,10 @@
+{
+  "name": "Marina OS · Gedidun",
+  "short_name": "Marina OS",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ec",
+  "theme_color": "#283c37",
+  "description": "Private Google-authorised portfolio dashboard"
+}
