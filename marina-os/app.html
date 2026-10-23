@@ -52,6 +52,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 <label>Google OAuth web client ID<input id="oauthClientId" autocomplete="off" placeholder="…apps.googleusercontent.com"></label>
 <label>Spreadsheet ID<input id="registryId" autocomplete="off" placeholder="ID from the Google Sheets URL"></label>
 </details>
+<button id="phoneSetupLink" type="button" class="refresh" style="display:block;margin:8px 0 14px">Copy phone setup link</button>
+<p class="hint" style="margin:-3px 0 14px">Use this on your computer after entering both IDs. Send the copied link privately to your phone. The link includes the two configuration IDs, but never your Google password or access token.</p>
 <button id="connectBtn" class="cta primary" type="button">Continue with Google</button><p id="connectionStatus" role="status" aria-live="polite"></p><p class="scope-note">Google will ask permission to read and change spreadsheets. Gedidun requests this access to save your task statuses. Only accounts with permission to Marina's specific registry can use it.</p><p class="hint" id="setupText">The OAuth client ID and spreadsheet ID are configuration values, not passwords. No Google access token is saved to local storage.</p>
 </div></div><main class="app">
 <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting to the registry…</span></div>
@@ -96,7 +98,34 @@ const SCOPE='https://www.googleapis.com/auth/spreadsheets';
 const keyConfig='gedidun-pages-settings-v1';
 const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next'};
 const readConfig=()=>{try{return JSON.parse(localStorage.getItem(keyConfig)||'{}')}catch(_){return {}}};
-let config=readConfig(), token='', tokenExpires=0, meta=null;
+function validSettings(clientId,sheetId){return /^[-\\w]+\\.apps\\.googleusercontent\\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
+function getPhoneSettings(){
+ const encoded=new URLSearchParams(window.location.search).get('setup');
+ if(!encoded)return {};
+ try{
+  const pad='='.repeat((4-encoded.length%4)%4);
+  const raw=JSON.parse(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')+pad));
+  if(!validSettings(raw.clientId,raw.sheetId))return {};
+  const settings={clientId:raw.clientId,sheetId:raw.sheetId};
+  localStorage.setItem(keyConfig,JSON.stringify(settings));
+  return settings;
+ }catch(_){return {}}
+}
+let config={...readConfig(),...getPhoneSettings()}, token='', tokenExpires=0, meta=null;
+async function copyPhoneLink(){
+ const clientId=$('oauthClientId').value.trim(),sheetId=$('registryId').value.trim();
+ if(!validSettings(clientId,sheetId)){showStatus('Enter the Google OAuth Client ID and Spreadsheet ID on this computer first.');return}
+ const page=new URL('./app.html',window.location.href);
+ const setup=btoa(JSON.stringify({clientId,sheetId})).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+ page.searchParams.set('setup',setup);
+ try{
+  if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+  await navigator.clipboard.writeText(page.toString());
+  showStatus('Phone link copied. Send it privately to your iPhone, open in Safari and tap Continue with Google.',true);
+ }catch(_){
+  window.prompt('Copy this link and send it privately to your iPhone:',page.toString());
+ }
+}
 const $=x=>document.getElementById(x);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function showStatus(text,success=false){const n=$('connectionStatus');n.textContent=text;n.style.color=success?'#27624a':'#81583d'}
@@ -251,6 +280,7 @@ function signOut(){
 }
 window.addEventListener('DOMContentLoaded',()=>{
  $('authBtn').addEventListener('click',showSettings);$('connectBtn').addEventListener('click',connect);
+  $('phoneSetupLink').addEventListener('click',copyPhoneLink);
  $('signOutBtn').addEventListener('click',signOut);
  $('setupClose').addEventListener('click',()=>{if(token)$('setup').hidden=true});
  showSettings();
@@ -259,7 +289,7 @@ window.addEventListener('gedidun-ready',finishSignIn);
 window.addEventListener('gedidun-auth-failed',e=>{
  showSettings();showStatus('Unable to open the Marina OS registry. Check Google account access and try again: '+(e.detail?.message||'Unknown error'));
 });
-window.GedidunAuth={connect,showSettings,hasToken:()=>!!token};
+window.GedidunAuth={connect,showSettings,copyPhoneLink,hasToken:()=>!!token};
 })();
 
 </script>
