@@ -47,6 +47,24 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 #importPhoneSetupBtn{display:block;width:100%;margin-bottom:10px;background:#28483f;color:white;border-color:#28483f}
 #phoneSetupLink{display:block;width:100%;margin:8px 0 14px!important;padding:13px 16px;border:1px solid #91a99b;border-radius:12px;background:#e5eee6;color:#28483f;font-weight:800;text-align:center;box-shadow:0 2px 6px #00000010}
 #phoneSetupLink:hover{background:#d5e5d9}#phoneSetupLink:focus-visible{outline:3px solid #e4b45c;outline-offset:2px}
+
+.capture-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f0eadb;border:1px solid #e1d6c2;border-radius:14px;padding:12px 14px;margin:7px 0 13px;flex-wrap:wrap}
+.capture-bar p{margin:0;color:#5e665c;font-size:12px}
+.task-conversation{background:#edf1e8;border:1px solid #ccd8ca;border-radius:15px;padding:14px;margin:16px 0 14px}
+.task-conversation h3{font:20px Georgia,serif;margin:0 0 7px}
+.task-conversation label{font-size:12px;font-weight:650;color:#33483e}
+.task-conversation textarea{display:block;width:100%;margin:10px 0 12px;min-height:110px;border-radius:12px;background:white;border:1px solid #bfcbbd;padding:12px;color:#27362f;line-height:1.4;resize:vertical}
+.task-conversation .capture-choice{display:flex;align-items:flex-start;gap:9px;margin:8px 0;font-weight:500;line-height:1.4}
+.task-conversation .capture-choice input{margin:3px 0;accent-color:#285947;width:16px;height:16px;flex:none}
+.update-history{border-top:1px solid #d0dacd;margin-top:15px;padding-top:10px}
+.update-entry{border-bottom:1px solid #d7decf;padding:10px 0}
+.update-entry small{display:block;color:#626f62;font-weight:700;font-size:11px;margin-bottom:5px}
+.update-entry p{white-space:pre-wrap;margin:0;color:#354a3d;line-height:1.46;font-size:13px;overflow-wrap:anywhere}
+.extra-actions{margin:15px 0}.extra-actions summary{font-size:12px;font-weight:800;color:#5f6758;padding:10px;cursor:pointer}
+.task-create label{display:block;font-size:12px;font-weight:700;margin:13px 0;color:#405147}
+.task-create :is(select,input,textarea){display:block;width:100%;padding:11px;margin:7px 0 0;border:1px solid #bcbfae;border-radius:9px;background:#fff;color:#28382d;font-size:14px}
+.task-create textarea{min-height:90px;resize:vertical}
+@media(max-width:680px){.capture-bar{align-items:stretch}.capture-bar .cta{width:100%}}
 </style>
 </head>
 <body>
@@ -70,13 +88,14 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 <p class="hint" style="margin:-3px 0 14px">Use this on your computer after entering both IDs. Send the copied link privately to your phone. Once the icon is installed, open Marina OS from your Home Screen and choose "Import settings" to paste the link once. The link contains no Google password or access token.</p>
 <button id="connectBtn" class="cta primary" type="button">Continue with Google</button><p id="connectionStatus" role="status" aria-live="polite"></p><p class="scope-note">Google will ask permission to read and change spreadsheets. Gedidun requests this access to save your task statuses. Only accounts with permission to Marina's specific registry can use it.</p><p class="hint" id="setupText">The OAuth client ID and spreadsheet ID are configuration values, not passwords. No Google access token is saved to local storage.</p>
 </div></div><main class="app">
+<div class="capture-bar"><p><strong>Got something to do?</strong> Capture it straight into a project.</p><button id="newTaskTop" type="button" class="cta primary">＋ New task</button></div>
 <div class="sync" id="sync"><span class="dot"></span><span id="syncText">Connecting to the registry…</span></div>
 <div class="notice" id="notice" hidden></div>
 <div class="content-grid">
  <section id="paneToday" class="pane section-pane current">
   <div class="section-title"><h2>What matters now</h2><small id="todayLabel"></small></div>
   <div id="featureSlot" aria-live="polite"><div class="empty">Loading your next action…</div></div>
-  <div class="eyebrow">Coming up</div><div class="queue" id="upcoming"></div>
+  <div class="eyebrow">Coming up</div><div class="queue" id="upcoming"></div><div id="requestsBox" hidden><div class="eyebrow">Written requests for Marina OS review</div><div id="pendingRequests" class="queue"></div><p class="hint">Saved requests need interpretation in ChatGPT; Gedidun does not execute them automatically.</p></div>
   <details class="minor" id="reviewGroup"><summary id="reviewSummary">Past dates requiring review</summary><div class="minor-list" id="reviewList"></div></details>
   <details class="minor" id="futureGroup" hidden><summary id="futureSummary">Scheduled to return</summary><div class="minor-list" id="futureList"></div></details><div class="eyebrow">No confirmed deadline</div><div class="queue" id="undated"></div>
  </section>
@@ -95,10 +114,32 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 <nav class="bottom-nav" aria-label="App sections"><button type="button" data-nav="today" class="active"><span class="ico">◉</span>Today</button><button type="button" data-nav="projects"><span class="ico">▤</span>Projects</button><button type="button" data-nav="waiting"><span class="ico">◷</span>Waiting</button></nav>
 <div class="screen" id="screen" hidden><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="handle"></div><div class="project-header"><div><div class="project-id" id="sheetProject"></div><h2 id="sheetTitle"></h2></div><button class="close" id="closeSheet" type="button" aria-label="Close details">×</button></div>
  <div class="sheet-meta" id="sheetMeta"></div><div class="sheet-next" id="sheetNext"></div><div class="sheet-meta" id="sheetMeaning"></div>
- <div class="actions" id="statusActions"><button type="button" class="cta pin" id="pinAction">☆ Choose as next</button><button type="button" class="cta primary" data-status="Closed">✓ Close outcome</button><button type="button" class="cta secondary" id="waitingMode">◷ Waiting</button><button type="button" class="cta" id="resurfaceMode">◷ Show on date</button><button type="button" class="cta" data-status="Action">↻ Active</button></div>
- <div class="form" id="waitingForm" hidden><label>Who or what are you waiting for? *<input id="waitingOn" placeholder="e.g. Nick to confirm a date" maxlength="180" autocomplete="off"></label><label>Follow up on (optional)<input id="followUp" type="date"></label><label>Context (optional)<textarea id="waitingNote" maxlength="400" placeholder="What needs to happen next?"></textarea></label><button type="button" class="cta primary" id="saveWaiting">Save Waiting</button></div>
+ <section class="task-conversation">
+  <h3>What's changed? What should happen next?</h3>
+  <label for="taskUpdateText">Write an update, decision or instruction in your own words.</label>
+  <textarea id="taskUpdateText" maxlength="1800" placeholder="For example: Spoke with Michael. We agreed to review the promotion plan on Monday. Need to decide who will prepare the poster."></textarea>
+  <label class="capture-choice"><input type="checkbox" id="updateAsNext"> Use this text as the task's new next action (replaces the existing next-action text)</label>
+  <label class="capture-choice"><input type="checkbox" id="updateNeedsReview"> Save this as a request for Marina OS to review (not automatically interpreted)</label>
+  <button type="button" id="saveTaskUpdate" class="cta primary">Save written update</button>
+  <p class="hint">Every update is kept in the registry history. Only the first option changes the next action. Other instructions are captured for later review — they aren't silently carried out.</p>
+  <div id="taskUpdatesHistory" class="update-history"></div>
+ </section>
+ <button id="newRelatedTask" class="cta" type="button">＋ New task for this project</button>
+ <details class="extra-actions"><summary>Other controls: Done, Waiting, scheduling…</summary><div class="actions" id="statusActions"><button type="button" class="cta pin" id="pinAction">☆ Choose as next</button><button type="button" class="cta primary" data-status="Closed">✓ Close outcome</button><button type="button" class="cta secondary" id="waitingMode">◷ Waiting</button><button type="button" class="cta" id="resurfaceMode">◷ Show on date</button><button type="button" class="cta" data-status="Action">↻ Active</button></div>
+ </details><div class="form" id="waitingForm" hidden><label>Who or what are you waiting for? *<input id="waitingOn" placeholder="e.g. Nick to confirm a date" maxlength="180" autocomplete="off"></label><label>Follow up on (optional)<input id="followUp" type="date"></label><label>Context (optional)<textarea id="waitingNote" maxlength="400" placeholder="What needs to happen next?"></textarea></label><button type="button" class="cta primary" id="saveWaiting">Save Waiting</button></div>
  <div class="form" id="resurfaceForm" hidden><label>Bring back as a priority on<input id="resurfaceDate" type="date" required></label><p id="resurfaceWarning" class="hint" aria-live="polite"></p><div class="actions"><button type="button" class="cta primary" id="saveResurface">Save return date</button><button type="button" class="cta" id="clearResurface">Remove date</button></div><p class="hint">This changes the Today priority, not the original due date or status. Open the app on that date to see it; it is not a phone notification.</p></div><div id="saveResult" class="sheet-meta" aria-live="polite"></div><a class="source-link" id="recordLink" target="_blank" rel="noopener noreferrer">↗ Open original registry row</a><div class="sheet-footer" id="sheetFooter"></div>
 </div></div>
+<div class="screen" id="newTaskScreen" hidden><div class="sheet task-create" role="dialog" aria-modal="true" aria-labelledby="newTaskHeading">
+ <div class="project-header"><h2 id="newTaskHeading">Create a new task</h2><button type="button" class="close" id="closeCreateTask" aria-label="Cancel creation">×</button></div>
+ <p class="hint">Saved as a distinct action under an existing Marina OS project. No due date is needed unless one is confirmed.</p>
+ <label for="createProject">Project<select id="createProject"></select></label>
+ <label for="createTitle">What needs doing? *<input id="createTitle" type="text" maxlength="180" placeholder="e.g. Prepare the next Posidelki trailer"></label>
+ <label for="createNext">Notes / next step<textarea id="createNext" maxlength="2000" placeholder="What do you already know? What should happen next?"></textarea></label>
+ <label for="createDue">Due date (optional)<input id="createDue" type="date"></label>
+ <label for="createCriteria">Done when (optional)<textarea id="createCriteria" maxlength="900" placeholder="How will you know this is finished?"></textarea></label>
+ <div class="actions"><button type="button" class="cta primary" id="submitCreateTask">Create task</button><button type="button" class="cta" id="cancelCreateTask">Cancel</button></div>
+ <p class="sheet-meta" id="createTaskResult" aria-live="polite"></p>
+ </div></div>
 <div class="toast" id="toast" hidden role="status"></div>
 <script>
 /* Gedidun GitHub Pages adapter · browser-only Google OAuth / Sheets REST
@@ -110,7 +151,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 const ROOT='https://sheets.googleapis.com/v4/spreadsheets/';
 const SCOPE='https://www.googleapis.com/auth/spreadsheets';
 const keyConfig='gedidun-pages-settings-v1';
-const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next',resurface:'Dashboard Resurface'};
+const TAB={projects:'Projects',actions:'Actions & Waiting',visibility:'Dashboard Visibility',followups:'Dashboard Follow-ups',audit:'Dashboard Change Log',pin:'Dashboard Selected Next',resurface:'Dashboard Resurface',updates:'Dashboard Task Updates'};
 const readConfig=()=>{try{return JSON.parse(localStorage.getItem(keyConfig)||'{}')}catch(_){return {}}};
 function validSettings(clientId,sheetId){return /^[-\w]+\.apps\.googleusercontent\.com$/.test(clientId)&&/^[A-Za-z0-9_-]{30,}$/.test(sheetId)}
 function parsePhoneSetup(encoded){
@@ -177,7 +218,7 @@ async function metadata(){
  return meta;
 }
 async function batchValues(names){
- const p=new URLSearchParams();names.forEach(name=>p.append('ranges',`${sheetName(name)}!A1:Q1000`));p.set('valueRenderOption','FORMATTED_VALUE');
+ const p=new URLSearchParams();names.forEach(name=>p.append('ranges',`${sheetName(name)}!A1:Q${name===TAB.updates?3000:1000}`));p.set('valueRenderOption','FORMATTED_VALUE');
  const response=await request('values:batchGet?'+p);
  return Object.fromEntries(names.map((name,i)=>[name,response.valueRanges?.[i]?.values||[]]));
 }
@@ -191,7 +232,7 @@ function timestamp(){return new Intl.DateTimeFormat('en-NZ',{timeZone:'Pacific/A
 async function getDashboard(){
  if(!config.sheetId)throw new Error('Enter the registry ID in Connect Google.');
  if(!meta)await metadata();
- const names=[TAB.projects,TAB.actions,TAB.visibility,...[TAB.followups,TAB.pin,TAB.resurface].filter(n=>n in meta)];
+ const names=[TAB.projects,TAB.actions,TAB.visibility,...[TAB.followups,TAB.pin,TAB.resurface,TAB.updates].filter(n=>n in meta)];
  const rows=await batchValues(names),vis={};
  (rows[TAB.visibility]||[]).slice(1).forEach(r=>{if(/^P\d{3}$/.test(r[0]||''))vis[r[0]]=r[1]});
  const projects=(rows[TAB.projects]||[]).slice(1).filter(r=>/^P\d{3}$/.test(r[0]||'')).map(r=>({id:r[0],name:r[1]||'',parent:r[2]||'',purpose:r[4]||'',milestone:r[5]||'',milestoneDate:r[6]||'',next:r[8]||'',attention:r[11]||'',visibility:vis[r[0]]||'active'}));
@@ -207,15 +248,16 @@ async function getDashboard(){
  const resurface={};
  (rows[TAB.resurface]||[]).slice(1).forEach(r=>{if(r[0]&&/^20\d{2}-\d{2}-\d{2}$/.test(r[3]||''))resurface[r[0]]=r[3]});
  actions.forEach(a=>a.resurfaceOn=a.status==='Action'?(resurface[a.key]||''):'');
+ const updates=(rows[TAB.updates]||[]).slice(1).filter(r=>r[0]&&r[1]&&r[5]).map(r=>({id:r[0],key:r[1],at:r[2]||'',project:r[3]||'',outcome:r[4]||'',text:r[5],mode:r[6]||'Note',row:r[7]||''})).slice(-300).reverse();
  const pin=(rows[TAB.pin]||[])[1]?.[0]||'';
  const pinnedKey=actions.some(a=>a.key===pin&&a.status==='Action'&&(!a.resurfaceOn||a.resurfaceOn<=getNZToday()))?pin:'';
- return {projects,actions,pinnedKey,today:getNZToday(),asOf:timestamp(),registryUrl:`https://docs.google.com/spreadsheets/d/${config.sheetId}/edit`,actionsGid:meta[TAB.actions],source:'Google Sheets (authorised browser read)',schemaVersion:1};
+ return {projects,actions,updates,pinnedKey,today:getNZToday(),asOf:timestamp(),registryUrl:`https://docs.google.com/spreadsheets/d/${config.sheetId}/edit`,actionsGid:meta[TAB.actions],source:'Google Sheets (authorised browser read)',schemaVersion:1};
 }
 async function fetchSingle(name,range){const result=await request('values/'+encodeURIComponent(`${sheetName(name)}!${range}`));return result.values||[]}
 async function replaceValues(name,range,values){
  return request('values/'+encodeURIComponent(`${sheetName(name)}!${range}`)+'?valueInputOption=RAW',{method:'PUT',body:JSON.stringify({range:`${sheetName(name)}!${range}`,majorDimension:'ROWS',values})});
 }
-async function appendValues(name,values){return request('values/'+encodeURIComponent(`${sheetName(name)}!A1:Q`) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values})});}
+async function appendValues(name,values){const width=values[0]?.length||8;if(width<1||width>20)throw new Error('Unsupported append width.');const last=String.fromCharCode(64+width);return request('values/'+encodeURIComponent(sheetName(name)+'!A1:'+last) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{method:'POST',body:JSON.stringify({values})});}
 async function ensureSheet(name,headers){
  if(!meta)await metadata();
  if(!(name in meta)){
@@ -225,7 +267,7 @@ async function ensureSheet(name,headers){
  }
 }
 async function auditRow(values){try{await ensureSheet(TAB.audit,['NZ timestamp','Task key','Project ID','Source row','Outcome','Old status','New status','Waiting for','Follow-up','Note','Actor']);await appendValues(TAB.audit,[values]);return ''}catch(e){return 'Audit log could not be confirmed: '+errorMessage(e)}}
-function validDate(value){if(!value)return '';if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||isNaN(Date.parse(value)))throw new Error('Follow-up date must be a valid YYYY-MM-DD date.');return value}
+function validDate(value){if(!value)return '';if(!/^\d{4}-\d{2}-\d{2}$/.test(value)||new Date(value+'T12:00:00Z').toISOString().slice(0,10)!==value)throw new Error('Enter a valid date (YYYY-MM-DD).');return value}
 async function checkedSource(args){
  if(!/^P\d{3}$/.test(args.project)||!Number.isInteger(Number(args.row))||Number(args.row)<2||!args.outcome||!args.key)throw new Error('Invalid action identity');
  if(await digest(args.project+'\n'+args.outcome)!==args.key)throw new Error('Action key mismatch. Refresh first.');
@@ -260,6 +302,73 @@ async function setResurface(args){
  if(audit)warnings.push(audit);
  return {verified:true,resurfaceOn:day,warnings};
 }
+
+async function addTaskUpdate(args){
+ await checkedSource(args);
+ const note=String(args.text||'').trim(),mode=String(args.mode||'Note'),id=String(args.updateId||'');
+ if(!note||note.length>1800)throw new Error('Write an update between 1 and 1,800 characters.');
+ if(!['Note','Request','Next action'].includes(mode))throw new Error('Unsupported update type.');
+ if(!/^[0-9a-z-]{20,64}$/i.test(id))throw new Error('Invalid update ID.');
+ await ensureSheet(TAB.updates,['Update ID','Task key','Recorded NZ','Project ID','Outcome','Message','Handling','Source row','Previous next action']);
+ const existing=await fetchSingle(TAB.updates,'A1:I3000');
+ if(existing.slice(1).some(r=>r[0]===id))return {verified:true,duplicate:true,mode,warnings:['This update was saved already.']};
+ const live=(await fetchSingle(TAB.actions,'A'+args.row+':E'+args.row))[0]||[];
+ if(projectId(live[0])!==args.project||live[1]!==args.outcome||live[3]!==args.expectedStatus)throw new Error('The task has changed. Refresh first.');
+ const previous=String(live[4]||'');
+ const entry=[id,args.key,timestamp(),args.project,args.outcome,note,mode,args.row,mode==='Next action'?previous:''];
+ const inserted=await appendValues(TAB.updates,[entry]);
+ const updatedRange=insert.updates?.updatedRange||'';
+ const matched=/!A(\d+):I(\d+)$/.exec(updatedRange);
+ if(!matched||matched[1]!==matched[2])throw new Error('Update was submitted, but its row was not identified. Refresh before retrying.');
+ const row=matched[1],saved=(await fetchSingle(TAB.updates,'A'+row+':I'+row))[0]||[];
+ if(saved[0]!==id||saved[1]!==args.key||saved[5]!==note)throw new Error('Update not verified. Inspect the update log before retrying.');
+ let applied=false;
+ const warnings=[];
+ if(mode==='Next action'){
+  try{
+   const before=(await fetchSingle(TAB.actions,'A'+args.row+':E'+args.row))[0]||[];
+   if(projectId(before[0])!==args.project||before[1]!==args.outcome||before[3]!==args.expectedStatus||String(before[4]||'')!==previous)
+    throw new Error('Task changed after your update was saved.');
+   await replaceValues(TAB.actions,'E'+args.row+':E'+args.row,[[note]]);
+   const after=(await fetchSingle(TAB.actions,'A'+args.row+':E'+args.row))[0]||[];
+   if(projectId(after[0])!==args.project||after[1]!==args.outcome||after[4]!==note)throw new Error('The new next action was not verified.');
+   applied=true;
+  }catch(e){warnings.push('Note saved, but NEXT ACTION NOT CONFIRMED: '+errorMessage(e))}
+ }
+ const log=await auditRow([timestamp(),args.key,args.project,args.row,args.outcome,args.expectedStatus,args.expectedStatus,'','',mode+': '+note.slice(0,180)+(applied?' [applied]':''),'Gedidun GitHub Pages']);
+ if(log)warnings.push(log);
+ return {verified:true,applied,mode,warnings};
+}
+async function createTask(args){
+ const project=String(args.project||'').trim(),title=String(args.title||'').trim(),next=String(args.next||'').trim(),criteria=String(args.criteria||'').trim();
+ const due=args.due?validDate(args.due):'',id=String(args.requestId||'');
+ if(!/^P\d{3}$/.test(project))throw new Error('Select an existing project.');
+ if(title.length<4||title.length>180)throw new Error('Task title must be 4–180 characters.');
+ if(next.length>2000||criteria.length>900)throw new Error('Instructions or completion criteria are too long.');
+ if(!/^[0-9a-z-]{20,64}$/i.test(id))throw new Error('Invalid task request ID.');
+ const parent=(await fetchSingle(TAB.projects,'A2:B150')).find(r=>r[0]===project);
+ if(!parent)throw new Error('Project not found in the registry.');
+ const existing=await fetchSingle(TAB.actions,'A1:H1000');
+ const same=existing.slice(1).find(r=>projectId(r[0])===project&&String(r[1]||'').trim().toLowerCase()===title.toLowerCase());
+ if(same){
+  if(String(same[7]||'').includes('request '+id))return {verified:true,duplicate:true,project,title,warnings:['This task was already created.']};
+  throw new Error('A task with this title exists in that project. Open it instead.');
+ }
+ const source='Created in Gedidun '+timestamp()+' · request '+id;
+ const record=[project+' — '+(parent[1]||project),title,'','Action',next||title,due,criteria,source];
+ const inserted=await appendValues(TAB.actions,[record]);
+ const matched=/!A(\d+):H(\d+)$/.exec(inserted.updates?.updatedRange||'');
+ if(!matched||matched[1]!==matched[2])throw new Error('Task submitted but row not identified. Refresh before retrying.');
+ const row=+matched[1],saved=(await fetchSingle(TAB.actions,'A'+row+':H'+row))[0]||[];
+ if(projectId(saved[0])!==project||saved[1]!==title||saved[3]!=='Action'||saved[4]!==record[4]||saved[7]!==source)
+  throw new Error('New task not verified. Check the registry before retrying.');
+ const key=await digest(project+'\n'+title);
+ const warnings=[];
+ const log=await auditRow([timestamp(),key,project,row,title,'','Action','','','Created task '+(next||title).slice(0,180),'Gedidun GitHub Pages']);
+ if(log)warnings.push(log);
+ return {verified:true,row,key,project,title,warnings};
+}
+
 async function setNextAction(args){
  await checkedSource(args);
  if(args.expectedStatus!=='Action')throw new Error('Only active outcomes can be chosen as next.');
@@ -305,7 +414,7 @@ async function saveAction(args){
  if(log)warnings.push(log);
  return {verified:true,status:args.targetStatus,previous:args.expectedStatus,row:args.row,warnings};
 }
-const runner={withSuccessHandler(cb){this.onSuccess=cb;return this},withFailureHandler(cb){this.onFail=cb;return this},invoke(method,args){Promise.resolve().then(()=>method(args)).then(result=>this.onSuccess?.(result)).catch(err=>this.onFail?.({message:errorMessage(err)}));},getDashboard(){this.invoke(getDashboard)},saveAction(arg){this.invoke(saveAction,arg)},setNextAction(arg){this.invoke(setNextAction,arg)},setResurface(arg){this.invoke(setResurface,arg)}};
+const runner={withSuccessHandler(cb){this.onSuccess=cb;return this},withFailureHandler(cb){this.onFail=cb;return this},invoke(method,args){Promise.resolve().then(()=>method(args)).then(result=>this.onSuccess?.(result)).catch(err=>this.onFail?.({message:errorMessage(err)}));},getDashboard(){this.invoke(getDashboard)},saveAction(arg){this.invoke(saveAction,arg)},setNextAction(arg){this.invoke(setNextAction,arg)},setResurface(arg){this.invoke(setResurface,arg)},addTaskUpdate(arg){this.invoke(addTaskUpdate,arg)},createTask(arg){this.invoke(createTask,arg)}};
 window.google=window.google||{};
 window.google.script={run:{withSuccessHandler(cb){return Object.create(runner,{onSuccess:{value:cb,writable:true}})}}};
 function connect(){
@@ -362,7 +471,7 @@ window.GedidunAuth={connect,showSettings,copyPhoneLink,importPhoneSetup,hasToken
 <script>
 (function(){'use strict';
 const $=id=>document.getElementById(id);
-const state={data:null,view:'today',selectedProject:null,selectedKey:null,busy:false,waitingOpen:false};
+const state={data:null,view:'today',selectedProject:null,selectedKey:null,busy:false,waitingOpen:false,updateRequestId:null,createRequestId:null,createBusy:false};
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const trunc=(s,n)=>String(s||'').length>n?String(s).slice(0,n-1)+'…':String(s||'');
 const MONTH={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
@@ -406,6 +515,9 @@ function htmlAction(a,extra=''){
 function renderToday(){if(!state.data)return;const upcoming=attention(),top=upcoming[0];$('todayLabel').textContent=state.data.today;
  if(top){let p=findProject(top.project);$('featureSlot').innerHTML=`<button type="button" class="feature" data-open="${safe(top.key)}"><div class="feature-eyebrow">${safe(isPinned(top)?'Your chosen next action · ':returned(top)?'Scheduled priority returned · ':explicitFirstScore(top)?'Named project priority · ':'' )}${safe(bucket(top)==='today'?'Due today':bucket(top)==='tomorrow'?'Due tomorrow':bucket(top)==='follow-up'?'Follow-up due':bucket(top)==='review'?'Past date — check':bucket(top)==='undated'?'No date recorded':'Next dated action')} · ${safe(p?.name||top.project)}</div><strong>${safe(top.outcome)}</strong><div class="task-mini">${safe(trunc(top.next||top.detail,155))}</div><div class="feature-footer"><span>${safe(top.due||top.waiting?.followUp||'No recorded due date')}</span><span>Open action →</span></div></button>`;}else{$('featureSlot').innerHTML='<div class="empty">No actionable outcomes have a confirmed date in the next 14 days. Check undated work and past dates below.</div>'}
  $('upcoming').innerHTML=upcoming.filter(a=>a.key!==top?.key).slice(0,9).map(a=>htmlAction(a)).join('')||'<div class="hint">No other confirmed short-term deadlines.</div>';
+ const requests=(state.data.updates||[]).filter(u=>u.mode==='Request');
+ $('requestsBox').hidden=!requests.length;
+ $('pendingRequests').innerHTML=requests.slice(0,8).map(u=>'<button class="action" type="button" data-open="'+safe(u.key)+'"><span class="pill waiting">Review</span><span style="min-width:0;flex:1"><strong>'+safe(u.text.slice(0,90))+'</strong><em>'+safe(u.project+' · '+u.outcome)+'</em></span></button>').join('');
  const review=orderedActions().filter(a=>bucket(a)==='review'&&!returned(a));$('reviewSummary').textContent=`Past dates needing verification (${review.length})`;
  $('reviewList').innerHTML=review.slice(0,30).map(a=>htmlAction(a)).join('')||'<div class="hint">No past dates to verify.</div>';
   const scheduled=orderedActions().filter(a=>bucket(a)==='snoozed').sort((a,b)=>a.resurfaceOn.localeCompare(b.resurfaceOn));
@@ -443,8 +555,14 @@ function navigate(tab){state.view=tab;const phones=window.matchMedia('(max-width
 }
 function nextMonday(today){const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+((8-d.getUTCDay())%7||7));return d.toISOString().slice(0,10)}
 function updateReturnWarning(){const a=state.data?.actions.find(x=>x.key===state.selectedKey),date=$('resurfaceDate').value,due=dueISO(a?.due);$('resurfaceWarning').textContent=due&&date>due?'⚠ Recorded deadline '+due+' is earlier than your chosen return date. The deadline will NOT change.':'Your original due date will stay unchanged.'}
+function renderTaskUpdates(a){
+ const all=(state.data?.updates||[]).filter(u=>u.key===a.key).slice(0,12);
+ $('taskUpdatesHistory').innerHTML=all.length?'<div class="small-head">Update history ('+(state.data.updates||[]).filter(u=>u.key===a.key).length+')</div>'+all.map(u=>'<article class="update-entry"><small>'+safe(u.at)+' · '+safe(u.mode==='Next action'?'Next action update':u.mode==='Request'?'Request for review':'Note')+'</small><p>'+safe(u.text)+'</p></article>').join(''):'<p class="hint">No written updates yet. Your first update will be kept here.</p>';
+}
 function openTask(key){const a=state.data?.actions.find(a=>a.key===key);if(!a)return;state.selectedKey=key;state.waitingOpen=false;
- const p=findProject(a.project);$('resurfaceMode').disabled=state.busy||!a.canUpdate||a.status!=='Action';$('pinAction').textContent=isPinned(a)?'★ Your next action':'☆ Choose as next';$('pinAction').disabled=state.busy||!a.canUpdate||a.status!=='Action'||isPinned(a);$('sheetProject').textContent=`${a.project} · ${p?.name||''} · ${activityName(a.outcome)}`;$('sheetTitle').textContent=a.outcome;
+ const p=findProject(a.project);renderTaskUpdates(a);
+ $('taskUpdateText').value='';$('updateAsNext').checked=false;$('updateNeedsReview').checked=false;
+ $('resurfaceMode').disabled=state.busy||!a.canUpdate||a.status!=='Action';$('pinAction').textContent=isPinned(a)?'★ Your next action':'☆ Choose as next';$('pinAction').disabled=state.busy||!a.canUpdate||a.status!=='Action'||isPinned(a);$('sheetProject').textContent=`${a.project} · ${p?.name||''} · ${activityName(a.outcome)}`;$('sheetTitle').textContent=a.outcome;
  $('sheetMeta').textContent=`${a.status==='Closed'?'Done':a.status} · ${a.due||'No confirmed due date'} · ${a.resurfaceOn?'Priority returns '+a.resurfaceOn+' · ':''}${bucket(a)==='review'?'Past date requires checking':'Current registry record'}`;
  $('sheetNext').textContent=a.next||'No next action defined.';
  $('sheetMeaning').textContent=a.doneWhen?'Done when: '+a.doneWhen:'';
@@ -487,6 +605,88 @@ function pinSelected(){
    else{$('saveResult').textContent='Selection not verified. Inspect the registry sidecar.';}
  }).withFailureHandler(err=>{state.busy=false;$('pinAction').disabled=false;$('saveResult').textContent='Could not verify selection: '+(err.message||err)+'. Refresh and try again.';$('saveResult').className='error';}).setNextAction({row:a.row,key:a.key,project:a.project,outcome:a.outcome,expectedStatus:a.status});
 }
+
+function createIdentifier(){return crypto.randomUUID()}
+function submitWrittenUpdate(){
+ if(state.busy||!state.data||!state.selectedKey)return;
+ const a=state.data.actions.find(x=>x.key===state.selectedKey);
+ if(!a||!a.canUpdate){$('saveResult').textContent='This task cannot be updated in its current state.';return}
+ const note=$('taskUpdateText').value.trim();
+ if(!note){$('saveResult').textContent='Write an update first.';$('taskUpdateText').focus();return}
+ let mode='Note';
+ if($('updateAsNext').checked)mode='Next action';
+ else if($('updateNeedsReview').checked)mode='Request';
+ const id=state.updateRequestId||(state.updateRequestId=createIdentifier());
+ const args={updateId:id,key:a.key,row:a.row,project:a.project,outcome:a.outcome,expectedStatus:a.status,text:note,mode};
+ state.busy=true;$('saveTaskUpdate').disabled=true;
+ $('saveResult').textContent='Saving your words to Google Sheets…';
+ google.script.run.withSuccessHandler(result=>{
+  state.busy=false;$('saveTaskUpdate').disabled=false;
+  if(result.verified){
+   state.updateRequestId=null;
+   const warnings=result.warnings||[];
+   const outcome=mode==='Next action'?(result.applied?'Update saved and made the next action.':'Update saved, but the next action was NOT confirmed.'):mode==='Request'?'Instruction saved for review. Not automatically executed.':'Update saved to task history.';
+   toast(warnings.length?outcome+' '+warnings.join('; '):outcome,warnings.length>0);
+   refresh(true);
+  }else{$('saveResult').textContent='Update not verified. Check the registry before retrying.';}
+ }).withFailureHandler(err=>{
+  state.busy=false;$('saveTaskUpdate').disabled=false;
+  $('saveResult').textContent='Could not confirm the update: '+(err.message||err)+'. Check the registry before retrying.';
+ }).addTaskUpdate(args);
+}
+function openCreateTask(preselect){
+ if(!state.data){toast('Sign in and load the registry first.',true);return}
+ if(!$('screen').hidden)closeTask();
+ const projects=[...state.data.projects].sort((a,b)=>a.id.localeCompare(b.id));
+ $('createProject').innerHTML=projects.map(p=>'<option value="'+safe(p.id)+'">'+safe(p.id+' · '+p.name)+'</option>').join('');
+ $('createProject').value=preselect||state.selectedProject||projects[0]?.id||'';
+ $('createTitle').value='';$('createNext').value='';$('createDue').value='';$('createCriteria').value='';
+ $('createTaskResult').textContent='';state.createRequestId=null;
+ $('newTaskScreen').hidden=false;document.body.style.overflow='hidden';$('createTitle').focus();
+}
+function closeCreateTask(){
+ if(state.createBusy)return;
+ $('newTaskScreen').hidden=true;
+ document.body.style.overflow='';
+}
+function submitNewTask(){
+ if(state.createBusy||!state.data)return;
+ const title=$('createTitle').value.trim(),project=$('createProject').value;
+ if(title.length<4){$('createTaskResult').textContent='Enter a short task title (at least 4 characters).';return}
+ const req=state.createRequestId||(state.createRequestId=createIdentifier());
+ const args={requestId:req,project,title,next:$('createNext').value.trim(),due:$('createDue').value,criteria:$('createCriteria').value.trim()};
+ state.createBusy=true;$('submitCreateTask').disabled=true;$('createTaskResult').textContent='Creating the task and verifying its row…';
+ google.script.run.withSuccessHandler(result=>{
+  state.createBusy=false;$('submitCreateTask').disabled=false;
+  if(result.verified){
+   state.createRequestId=null;
+   $('newTaskScreen').hidden=true;document.body.style.overflow='';
+   state.selectedKey=result.key;
+   toast(result.duplicate?'Task was already created.':'New task saved under '+project+'.',false);
+   refresh(true);
+  }else{$('createTaskResult').textContent='Task not verified; check the registry.';}
+ }).withFailureHandler(err=>{
+  state.createBusy=false;$('submitCreateTask').disabled=false;
+  $('createTaskResult').textContent='Not confirmed: '+(err.message||err)+'. Check the registry before retrying.';
+ }).createTask(args);
+}
+$('updateAsNext').addEventListener('change',()=>{
+ if($('updateAsNext').checked)$('updateNeedsReview').checked=false;
+});
+$('updateNeedsReview').addEventListener('change',()=>{
+ if($('updateNeedsReview').checked)$('updateAsNext').checked=false;
+});
+$('taskUpdateText').addEventListener('input',()=>{state.updateRequestId=null});
+$('saveTaskUpdate').addEventListener('click',submitWrittenUpdate);
+$('newTaskTop').addEventListener('click',()=>openCreateTask(''));
+$('newRelatedTask').addEventListener('click',()=>{
+ const a=state.data?.actions.find(x=>x.key===state.selectedKey);
+ openCreateTask(a?.project||'');
+});
+$('closeCreateTask').addEventListener('click',closeCreateTask);
+$('cancelCreateTask').addEventListener('click',closeCreateTask);
+$('submitCreateTask').addEventListener('click',submitNewTask);
+
 $('pinAction').addEventListener('click',pinSelected);
 $('refreshBtn').addEventListener('click',()=>refresh());$('projectSearch').addEventListener('input',renderWall);
 document.addEventListener('click',e=>{const open=e.target.closest('[data-open]');if(open){openTask(open.dataset.open);return;}const p=e.target.closest('[data-project]');if(p){navigate('projects');renderProject(p.dataset.project);renderWall();return;}const n=e.target.closest('[data-nav]');if(n){navigate(n.dataset.nav);return;}
