@@ -317,7 +317,7 @@ async function addTaskUpdate(args){
  const previous=String(live[4]||'');
  const entry=[id,args.key,timestamp(),args.project,args.outcome,note,mode,args.row,mode==='Next action'?previous:''];
  const inserted=await appendValues(TAB.updates,[entry]);
- const updatedRange=insert.updates?.updatedRange||'';
+ const updatedRange=inserted.updates?.updatedRange||'';
  const matched=/!A(\d+):I(\d+)$/.exec(updatedRange);
  if(!matched||matched[1]!==matched[2])throw new Error('Update was submitted, but its row was not identified. Refresh before retrying.');
  const row=matched[1],saved=(await fetchSingle(TAB.updates,'A'+row+':I'+row))[0]||[];
